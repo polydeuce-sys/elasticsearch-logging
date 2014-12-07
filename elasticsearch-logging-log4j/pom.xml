@@ -1,0 +1,48 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+   <parent>
+  	<groupId>com.polydeucesys</groupId>
+  	<artifactId>elasticsearch-logging-parent</artifactId>
+  	<version>0.0.1-SNAPSHOT</version>
+  </parent>
+  <groupId>com.polydeucesys</groupId>
+  <artifactId>elasticsearch-logging-log4j</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>elasticsearch-log4j</name>
+  <description>A Log4J Appender which writes directly to ElasticSearch via a Jest client</description>
+  <inceptionYear>2014</inceptionYear>
+  	<licenses>
+		<license>
+			<name>MIT License</name>
+			<url>http://www.opensource.org/licenses/mit-license.php</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+  <organization>
+  	<name>Polydeuce-Sys LLP</name>
+  </organization>
+  <developers>
+  	<developer>
+  		<id>kevin</id>
+  		<name>Kevin</name>
+  		<email>polydeuce.sys@gmail.com</email>
+  		<organization>Polydeuce-Sys LLP</organization>
+  		<roles>
+  			<role>architect</role>
+  			<role>developer</role>
+  		</roles>
+  	</developer>
+  </developers>
+	<dependencies>
+	    <dependency>
+			<groupId>com.polydeucesys</groupId>
+  			<artifactId>elasticsearch-logging-core</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
+		</dependency>
+	</dependencies>
+</project>

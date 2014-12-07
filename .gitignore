@@ -41,3 +41,12 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+*.class
+*.classpath
+*.project
+*.prefs
+elasticsearch-logging-logback/target/**
+elasticsearch-logging-log4j2/target/**
+elasticsearch-logging-log4j/target/**
+elasticsearch-logging-core/target/**
