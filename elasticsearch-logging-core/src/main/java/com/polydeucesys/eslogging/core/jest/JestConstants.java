@@ -11,6 +11,9 @@ public final class JestConstants {
 	
 	public static final int DEFAULT_QUEUE_DEPTH = 50;
 	public static final long DEFAULT_MAX_SUBMISSION_INTERVAL_MILLISECONDS = 2000;
+	public static final String DEFAULT_LOG_INDEX_PREFIX = "logs";
+	public static final String DEFAULT_LOG_DOC_TYPE = "logs";
+
 	
 	public static final String  JEST_EXCEPTION_FORMAT = "Exception logging via Jest with config : %s";
 	public static final String  JEST_BAD_STATUS_EXCEPTION_FORMAT = "Bad status error :  %s, logging via Jest with config : %s";
@@ -24,7 +27,7 @@ public final class JestConstants {
 	public static final long    MINIMUM_CLIENT_NODE_DISCOVERY_INTERVAL_MILLIS = 1000;
 	public static final int 	 CLIENT_CONNECTION_TIMEOUT_MILLIS = 30000;
 	public static final int    CLIENT_READ_TIMEOUT_MILLIS = 30000;
-	public static final long    CLIENT_MAX_CONNECTION_IDLE_TIME_MILLIS = 60000;
+	public static final long    CLIENT_MAX_CONNECTION_IDLE_TIME_MILLIS = 0;
 
 	public static final int    CLIENT_DEFAULT_MINIMUM_CONNECTION_TIMEOUT_MILLIS = 1000;	
 	public static final int    CLIENT_DEFAULT_MINIMUM_READ_TIMEOUT_MILLIS = 1000;		

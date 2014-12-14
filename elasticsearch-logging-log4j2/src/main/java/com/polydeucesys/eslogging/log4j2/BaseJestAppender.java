@@ -35,7 +35,7 @@ public class BaseJestAppender extends AbstractAppender{
 	private long maxSubmissionInterval = JestConstants.DEFAULT_MAX_SUBMISSION_INTERVAL_MILLISECONDS;
 	private boolean isOutputLoggerErrorsToStdErr = true;
 	// Internals
-	private LogAppenderModule<LogEvent, Index, Bulk, JestResult> loggingModule;
+	private LogAppenderModule<LogEvent, LogEvent, Index, Bulk, JestResult> loggingModule;
 	private final Object moduleBuildLock = new Object();
 	
 	protected BaseJestAppender(String name,
@@ -106,7 +106,8 @@ public class BaseJestAppender extends AbstractAppender{
 		logSubmissionStrategy.setMaxSubmissionIntervalMillisec(maxSubmissionInterval);
 		LogAppenderErrorHandler errorHandler = setupErrorHandler();
 
-		loggingModule = new LogAppenderModule<LogEvent, Index, Bulk, JestResult>(logSerializer, 
+		loggingModule = new LogAppenderModule<LogEvent,LogEvent, Index, Bulk, JestResult>(null,
+				logSerializer, 
 																					 logSubmissionStrategy, 
 																					 errorHandler);
 		

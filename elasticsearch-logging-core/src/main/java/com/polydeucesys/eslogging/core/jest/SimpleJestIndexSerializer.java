@@ -37,8 +37,4 @@ public final class SimpleJestIndexSerializer<L> extends AbstractMappedIndexSeria
 											.type(getIndexMapper().getDocumentTypeForLog(log));
 		return lb.build();
 	}
-
-	
-
-
 }
