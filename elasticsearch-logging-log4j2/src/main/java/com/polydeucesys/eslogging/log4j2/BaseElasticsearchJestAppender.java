@@ -1,6 +1,8 @@
 package com.polydeucesys.eslogging.log4j2;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.logging.log4j.core.ErrorHandler;
 import org.apache.logging.log4j.core.Filter;
@@ -13,17 +15,24 @@ import io.searchbox.core.Bulk;
 import io.searchbox.core.Index;
 
 
+import com.google.gson.Gson;
 import com.polydeucesys.eslogging.core.Connection;
+import com.polydeucesys.eslogging.core.Constants;
 import com.polydeucesys.eslogging.core.LogAppenderErrorHandler;
 import com.polydeucesys.eslogging.core.LogAppenderModule;
 import com.polydeucesys.eslogging.core.LogSerializer;
 import com.polydeucesys.eslogging.core.LogSubmissionStrategy;
+import com.polydeucesys.eslogging.core.LogTransform;
+import com.polydeucesys.eslogging.core.SimpleDateStampedLogMapper;
+import com.polydeucesys.eslogging.core.gson.SimpleGsonLogSerializer;
 import com.polydeucesys.eslogging.core.jest.JestConstants;
 import com.polydeucesys.eslogging.core.jest.JestHttpConnection;
+import com.polydeucesys.eslogging.core.jest.JestIndexStringSerializerWrapper;
 import com.polydeucesys.eslogging.core.jest.JestLogSubmissionStrategy;
+import com.polydeucesys.eslogging.core.jest.LogMapper;
 import com.polydeucesys.eslogging.core.jest.SimpleJestIndexSerializer;
 
-public class BaseJestAppender extends AbstractAppender{
+public class BaseElasticsearchJestAppender extends AbstractAppender{
 	
 	/**
 	 * 
@@ -31,20 +40,25 @@ public class BaseJestAppender extends AbstractAppender{
 	private static final long serialVersionUID = 8319273193664493254L;
 	// Settable properties
 	private String connectionString = "";
+	private String logIndexPrefix = "";
+	private String logIndexDateFormat = Constants.ELASTICSEARCH_INDEX_DATE_STAMP_FORMAT;
+	private String logDocType = "";
+	private final Map<String, String> logContextPropertiesMap = new HashMap<String,String>();
+	
 	private int queueDepth = JestConstants.DEFAULT_QUEUE_DEPTH;
 	private long maxSubmissionInterval = JestConstants.DEFAULT_MAX_SUBMISSION_INTERVAL_MILLISECONDS;
 	private boolean isOutputLoggerErrorsToStdErr = true;
 	// Internals
-	private LogAppenderModule<LogEvent, LogEvent, Index, Bulk, JestResult> loggingModule;
+	private LogAppenderModule<LogEvent, PropertyCarryLogEventWrapper, Index, Bulk, JestResult> loggingModule;
 	private final Object moduleBuildLock = new Object();
 	
-	protected BaseJestAppender(String name,
+	protected BaseElasticsearchJestAppender(String name,
             Filter filter,
             Layout<? extends Serializable> layout){
 		super(name, filter, layout);
 	}
 	
-	protected BaseJestAppender(String name,
+	protected BaseElasticsearchJestAppender(String name,
             Filter filter,
             Layout<? extends Serializable> layout,
             boolean ignoreExceptions){
@@ -84,6 +98,42 @@ public class BaseJestAppender extends AbstractAppender{
 		this.isOutputLoggerErrorsToStdErr = isOutputLoggerErrorsToStdErr;
 	}
 	
+	public String getLogIndexPrefix() {
+		return logIndexPrefix;
+	}
+
+	public void setLogIndexPrefix(String logIndexPrefix) {
+		this.logIndexPrefix = logIndexPrefix;
+	}
+
+	public String getLogIndexDateFormat() {
+		return logIndexDateFormat;
+	}
+
+	public void setLogIndexDateFormat(String logIndexDateFormat) {
+		this.logIndexDateFormat = logIndexDateFormat;
+	}
+
+	public String getLogDocType() {
+		return logDocType;
+	}
+
+	public void setLogDocType(String logDocType) {
+		this.logDocType = logDocType;
+	}
+	
+	public String getLogContextPropertiesJson(){
+		Gson gson = new Gson();
+		return gson.toJson(logContextPropertiesMap);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public void setLogContextPropertiesJson(String propertiesJson ){
+		Gson gson = new Gson();
+		logContextPropertiesMap.putAll((Map<String,String>)gson.fromJson(propertiesJson, 
+				                                                         logContextPropertiesMap.getClass()));
+	}
+	
 	private LogAppenderErrorHandler setupErrorHandler( ){
 		ErrorHandler log4j2ErrorHandler = getHandler();
 		LogAppenderErrorHandler esJestErrorHandler = isOutputLoggerErrorsToStdErr ?
@@ -96,7 +146,16 @@ public class BaseJestAppender extends AbstractAppender{
 	}
 
 	private void buildLoggingModule(){
-		LogSerializer<LogEvent, Index> logSerializer = new SimpleJestIndexSerializer<LogEvent>();
+		LogTransform<LogEvent, PropertyCarryLogEventWrapper> logTransform = new HostAndCwdLogTransform(logContextPropertiesMap);
+		
+		LogMapper<PropertyCarryLogEventWrapper> dateStampedLogMapper = new SimpleDateStampedLogMapper<PropertyCarryLogEventWrapper>(getLogIndexPrefix(),
+																					  getLogIndexDateFormat(),
+																					  getLogDocType());
+		SimpleGsonLogSerializer<PropertyCarryLogEventWrapper> wrappedJsonStringSerializer = new SimpleGsonLogSerializer<PropertyCarryLogEventWrapper>();
+		wrappedJsonStringSerializer.setTypeAdapter(PropertyCarryLogEventWrapper.class, new PropertyCarryLogEventWrapperTypeAdapter());
+		JestIndexStringSerializerWrapper<PropertyCarryLogEventWrapper> logSerializer = new JestIndexStringSerializerWrapper<PropertyCarryLogEventWrapper>();
+		logSerializer.setWrappedJsonStringSerializer(wrappedJsonStringSerializer);
+		logSerializer.setIndexMapper(dateStampedLogMapper);
 		Connection<Bulk, JestResult> connection = new JestHttpConnection();
 		connection.setConnectionString(connectionString);
 		connection.connect();
@@ -106,22 +165,31 @@ public class BaseJestAppender extends AbstractAppender{
 		logSubmissionStrategy.setMaxSubmissionIntervalMillisec(maxSubmissionInterval);
 		LogAppenderErrorHandler errorHandler = setupErrorHandler();
 
-		loggingModule = new LogAppenderModule<LogEvent,LogEvent, Index, Bulk, JestResult>(null,
+		loggingModule = new LogAppenderModule<LogEvent,PropertyCarryLogEventWrapper, Index, Bulk, JestResult>(null,
 				logSerializer, 
 																					 logSubmissionStrategy, 
 																					 errorHandler);
 		
 	}
 	
+	@Override 
+	public void start(){
+		synchronized(moduleBuildLock){
+			buildLoggingModule();
+		}
+		super.start();
+	}
+	
+	@Override
+	public void stop(){
+		super.stop();
+		synchronized(moduleBuildLock){
+			loggingModule.close();
+		}
+	}
+	
 	@Override
 	public void append(LogEvent log) {
-		if(loggingModule == null){
-			synchronized(moduleBuildLock){
-				if(loggingModule == null){
-					buildLoggingModule();
-				}
-			}
-		}
 		loggingModule.append(log);
 	}
 

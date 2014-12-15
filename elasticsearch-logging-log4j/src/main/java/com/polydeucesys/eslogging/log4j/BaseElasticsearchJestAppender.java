@@ -111,7 +111,9 @@ public class BaseElasticsearchJestAppender extends AppenderSkeleton{
 
 	@Override
 	public void close() {
-		loggingModule.close();
+		synchronized(moduleBuildLock){
+			loggingModule.close();
+		}
 	}
 
 	@Override
