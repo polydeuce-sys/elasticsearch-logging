@@ -32,4 +32,12 @@ public class LogAppenderModule<L,O, I, D, R> {
 			errorHandler.error(lse);
 		}
 	}
+	
+	public void close(){
+		try{
+			logSubmissionStrategy.close();
+		}catch(LogSubmissionException lse){
+			errorHandler.error(lse);
+		}
+	}
 }

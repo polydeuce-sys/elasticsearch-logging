@@ -167,4 +167,15 @@ public class JestLogSubmissionStrategy implements
 		submitIfRequired(toSubmit);
 	}
 
+	@Override
+	public void close() throws LogSubmissionException {
+		synchronized(submissionLock){
+			if(submissionCount > 0){
+				Bulk toSubmit = submissionsBuilder.build();
+				connection.submit(toSubmit);
+			}
+			connection.close();
+		}
+	}
+
 }

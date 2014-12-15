@@ -16,8 +16,8 @@ public final class JestConstants {
 
 	
 	public static final String  JEST_EXCEPTION_FORMAT = "Exception logging via Jest with config : %s";
-	public static final String  JEST_BAD_STATUS_EXCEPTION_FORMAT = "Bad status error :  %s, logging via Jest with config : %s";
-	public static final String  JEST_ASYNC_EXCEPTION_FORMAT = "Error in async logging via Jest %s";
+	public static final String  JEST_BAD_STATUS_EXCEPTION_FORMAT = "Bad status error :  %s, async logging via Jest";
+	public static final String  JEST_ASYNC_EXCEPTION_FORMAT = "Error in async logging via Jest : %s";
 	
 	public static final boolean CLIENT_IS_MULTITHREADED_DEFAULT = true;
 	public static final int     CLIENT_MAX_TOTAL_HTTP_CONNECTIONS = 10;
@@ -25,11 +25,12 @@ public final class JestConstants {
 	public static final boolean CLIENT_IS_NODE_DISCOVERY_ENABLED_DEFAULT = false;
 	public static final long    CLIENT_NODE_DISCOVERY_INTERVAL_MILLIS = 10000;
 	public static final long    MINIMUM_CLIENT_NODE_DISCOVERY_INTERVAL_MILLIS = 1000;
-	public static final int 	 CLIENT_CONNECTION_TIMEOUT_MILLIS = 30000;
-	public static final int    CLIENT_READ_TIMEOUT_MILLIS = 30000;
+	public static final int 	CLIENT_CONNECTION_TIMEOUT_MILLIS = 30000;
+	public static final int     CLIENT_READ_TIMEOUT_MILLIS = 30000;
 	public static final long    CLIENT_MAX_CONNECTION_IDLE_TIME_MILLIS = 0;
 
-	public static final int    CLIENT_DEFAULT_MINIMUM_CONNECTION_TIMEOUT_MILLIS = 1000;	
-	public static final int    CLIENT_DEFAULT_MINIMUM_READ_TIMEOUT_MILLIS = 1000;		
+	public static final int     CLIENT_DEFAULT_MINIMUM_CONNECTION_TIMEOUT_MILLIS = 1000;	
+	public static final int     CLIENT_DEFAULT_MINIMUM_READ_TIMEOUT_MILLIS = 1000;
+	public static final long    CLIENT_DEFAULT_MAX_ASYNC_COMPLETEION_TIME_FOR_SHUTDOWN = 1000;
 
 }

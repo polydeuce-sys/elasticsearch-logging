@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.http.auth.AuthScope;
 import org.apache.http.client.CredentialsProvider;
@@ -34,47 +35,62 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 
 	private static class JestResultWrapper implements JestResultHandler<JestResult>{
 		private final AsyncSubmitCallback<JestResult> callback;
+		private final AtomicInteger activeAsyncRequests;
 		
-		public JestResultWrapper(final AsyncSubmitCallback<JestResult> callback){
+		public JestResultWrapper(final AsyncSubmitCallback<JestResult> callback, 
+				                 final AtomicInteger activeAsyncRequests){
 			this.callback = callback;
+			this.activeAsyncRequests = activeAsyncRequests;
 		}
 
 		@Override
 		public void completed(JestResult result) {
-			if(result.isSucceeded()){
-				callback.completed(result);
-			}else{
-				callback.error(new LogSubmissionException(
-		 				String.format(JestConstants.JEST_BAD_STATUS_EXCEPTION_FORMAT,
-		 							  result.getErrorMessage(),
-		 							  toString())));
+			try{
+				if(result.isSucceeded()){
+					callback.completed(result);
+				}else{
+					callback.error(new LogSubmissionException(
+			 				String.format(JestConstants.JEST_BAD_STATUS_EXCEPTION_FORMAT,
+			 							  result.getErrorMessage())));
+				}
+			}finally{
+				activeAsyncRequests.decrementAndGet();
 			}
 		}
 
 		@Override
 		public void failed(Exception ex) {
-			callback.error(new LogSubmissionException(
+			try{
+				callback.error(new LogSubmissionException(
 						 				String.format(JestConstants.JEST_ASYNC_EXCEPTION_FORMAT, 
-						 							  toString()),
+						 							  ex),
 								       ex));
+			}finally{
+				activeAsyncRequests.decrementAndGet();
+			}
 		}
+		
 	}
 	private Set<String> esHosts = new TreeSet<String>();
 	private JestClientFactory jestClientFactory;
 	private JestHttpClient jestClient;
 	private HttpClientCredentialConfig clientCredentialConfig;
+	private final AtomicInteger activeAsyncRequests = new AtomicInteger(0);
+	
 	// http config values
 	private boolean isMultithreaded = JestConstants.CLIENT_IS_MULTITHREADED_DEFAULT;  
 	private int     maxTotalHttpConnections = JestConstants.CLIENT_MAX_TOTAL_HTTP_CONNECTIONS;
 	private int 	defaultMaxConnectionsPerRoute = JestConstants.CLIENT_DEFAULT_MAX_HTTP_CONNECTIONS_PER_ROUTE;
 	private boolean isDiscoveryEnabled = JestConstants.CLIENT_IS_NODE_DISCOVERY_ENABLED_DEFAULT;
 	private long    nodeDiscoveryIntervalMillis = JestConstants.CLIENT_NODE_DISCOVERY_INTERVAL_MILLIS;
-	private int    clientConnectionTimeoutMillis = JestConstants.CLIENT_CONNECTION_TIMEOUT_MILLIS;
-	private int    minimumAllowedConnectionTimeoutMillis = JestConstants.CLIENT_DEFAULT_MINIMUM_CONNECTION_TIMEOUT_MILLIS;
-	private int    clientReadTimeoutMillis = JestConstants.CLIENT_READ_TIMEOUT_MILLIS;
-	private int    minimumAllowedReadTimeoutMillis = JestConstants.CLIENT_DEFAULT_MINIMUM_READ_TIMEOUT_MILLIS;
+	private int     clientConnectionTimeoutMillis = JestConstants.CLIENT_CONNECTION_TIMEOUT_MILLIS;
+	private int     minimumAllowedConnectionTimeoutMillis = JestConstants.CLIENT_DEFAULT_MINIMUM_CONNECTION_TIMEOUT_MILLIS;
+	private int     clientReadTimeoutMillis = JestConstants.CLIENT_READ_TIMEOUT_MILLIS;
+	private int     minimumAllowedReadTimeoutMillis = JestConstants.CLIENT_DEFAULT_MINIMUM_READ_TIMEOUT_MILLIS;
 
-	private long 	clientMaxConnectionIdleTimeMillis = JestConstants.CLIENT_MAX_CONNECTION_IDLE_TIME_MILLIS;
+	private long    clientMaxConnectionIdleTimeMillis = JestConstants.CLIENT_MAX_CONNECTION_IDLE_TIME_MILLIS;
+	
+	private long    maxAsyncCompletionTimeForShutdownMillis = JestConstants.CLIENT_DEFAULT_MAX_ASYNC_COMPLETEION_TIME_FOR_SHUTDOWN;
 	
 	@Override
 	public void setConnectionString(String connectionString) {
@@ -181,6 +197,15 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 		this.clientMaxConnectionIdleTimeMillis = clientMaxConnectionIdleTimeMillis;
 	}
 	
+	public long getMaxAsyncCompletionTimeForShutdownMillis() {
+		return maxAsyncCompletionTimeForShutdownMillis;
+	}
+
+	public void setMaxAsyncCompletionTimeForShutdownMillis(
+			long maxAsyncCompletionTimeForShutdownMillis) {
+		this.maxAsyncCompletionTimeForShutdownMillis = maxAsyncCompletionTimeForShutdownMillis;
+	}
+
 	public HttpClientCredentialConfig getClientCredentialConfig() {
 		return clientCredentialConfig;
 	}
@@ -211,7 +236,8 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 	public void submitAsync(Bulk document,
 			AsyncSubmitCallback<JestResult> callback) {
 		try {
-			jestClient.executeAsync(document, new JestResultWrapper(callback));
+			activeAsyncRequests.incrementAndGet();
+			jestClient.executeAsync(document, new JestResultWrapper(callback, activeAsyncRequests));
 		} catch (ExecutionException ex) {
 			callback.error(new LogSubmissionException(
 	 				String.format(JestConstants.JEST_ASYNC_EXCEPTION_FORMAT, 
@@ -316,6 +342,20 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 	public void connect() {
 		validateConnectionParameters();
 		jestClient = buildJestClient();
+	}
+
+	@Override
+	public void close() {
+		long start = System.currentTimeMillis();
+		while(activeAsyncRequests.get() > 0 &&
+				System.currentTimeMillis() - start < maxAsyncCompletionTimeForShutdownMillis){
+			try{
+				Thread.sleep(100);
+			}catch(InterruptedException iex){
+				
+			}
+		}
+		jestClient.shutdownClient();
 	}
 
 

@@ -25,7 +25,7 @@ import com.polydeucesys.eslogging.core.jest.JestIndexStringSerializerWrapper;
 import com.polydeucesys.eslogging.core.jest.JestLogSubmissionStrategy;
 import com.polydeucesys.eslogging.core.jest.LogMapper;
 
-public class BaseJestAppender extends AppenderSkeleton{
+public class BaseElasticsearchJestAppender extends AppenderSkeleton{
 
 	// Settable properties
 	private String connectionString = "";
@@ -111,7 +111,7 @@ public class BaseJestAppender extends AppenderSkeleton{
 
 	@Override
 	public void close() {
-		
+		loggingModule.close();
 	}
 
 	@Override

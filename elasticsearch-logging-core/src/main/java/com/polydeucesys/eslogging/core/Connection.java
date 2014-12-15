@@ -6,4 +6,5 @@ public interface Connection<D, R> {
 	void connect();
 	R submit(final D document) throws LogSubmissionException;
 	void submitAsync( final D document, AsyncSubmitCallback<R> callback);
+	void close();
 }

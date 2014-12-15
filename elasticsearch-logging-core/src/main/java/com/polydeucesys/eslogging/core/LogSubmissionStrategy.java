@@ -23,4 +23,5 @@ public interface LogSubmissionStrategy<L, D, R> {
 	void setErrorHandler( LogAppenderErrorHandler errorHandler);
 	LogAppenderErrorHandler getErrorHandler();
 	void submit( final L log ) throws LogSubmissionException;
+	void close() throws LogSubmissionException;
 }

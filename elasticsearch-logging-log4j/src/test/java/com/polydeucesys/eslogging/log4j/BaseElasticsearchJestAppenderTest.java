@@ -10,7 +10,7 @@ import org.junit.Test;
 
 import com.github.restdriver.clientdriver.ClientDriverRule;
 
-public class BaseJestAppenderTest {
+public class BaseElasticsearchJestAppenderTest {
 
 	private static final int TEST_PORT = 9200;
 
@@ -18,7 +18,7 @@ public class BaseJestAppenderTest {
 	@Test
 	public void test() {
 		String connectionString = "http://localhost:" + TEST_PORT;
-		BaseJestAppender appender = new BaseJestAppender();
+		BaseElasticsearchJestAppender appender = new BaseElasticsearchJestAppender();
 		appender.setConnectionString(connectionString);
 		appender.setQueueDepth(1);
 		appender.setMaxSubmissionInterval(100);
@@ -29,20 +29,16 @@ public class BaseJestAppenderTest {
 		testLogger.addAppender(appender);
 		testLogger.info("A Test message");
 		testLogger.warn("A Test warn message");
-		testLogger.error("A test of an error");
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		testLogger.error("A test of an error", new IllegalArgumentException("Test Arg"));
+		LogManager.shutdown();
 	}
 	
 	@Test
 	public void perfTest() {
 		String connectionString = "http://localhost:" + TEST_PORT;
-		BaseJestAppender appender = new BaseJestAppender();
+		BaseElasticsearchJestAppender appender = new BaseElasticsearchJestAppender();
 		appender.setConnectionString(connectionString);
-		appender.setQueueDepth(100);
+		appender.setQueueDepth(50);
 		appender.setMaxSubmissionInterval(100);
 		appender.setLogDocType("appLog");
 		appender.setLogIndexPrefix("test-logs");
@@ -54,11 +50,8 @@ public class BaseJestAppenderTest {
 		while(System.currentTimeMillis() - start < 2000){
 			testLogger.log(Level.toPriority( (int)count++ % 9 ), "A log message at " + System.currentTimeMillis() + " is the " + count + " message");
 		}
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		LogManager.shutdown();
+
 		System.out.println("Wrote " + count + " logs in 2 seconds");
 	}
 
