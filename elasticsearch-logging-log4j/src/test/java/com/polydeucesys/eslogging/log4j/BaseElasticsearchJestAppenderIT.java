@@ -2,7 +2,9 @@ package com.polydeucesys.eslogging.log4j;
 
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestClientFactory;
+import io.searchbox.client.JestResult;
 import io.searchbox.client.config.HttpClientConfig;
+import io.searchbox.core.Search;
 import io.searchbox.indices.DeleteIndex;
 
 import java.text.SimpleDateFormat;
@@ -15,7 +17,7 @@ import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Test;
 
-public class BaseElasticsearchJestAppenderTest {
+public class BaseElasticsearchJestAppenderIT {
 	private static final String MAVEN_SERVER_URL_PROPERTY = "it-elasticsearch-url";
 	private static final String MAVEN_TEST_INDEX_PROPERTY = "it-elasticsearch-index";
 	private static final SimpleDateFormat todayFormat = new SimpleDateFormat("yyyy.MM.dd");
@@ -26,22 +28,25 @@ public class BaseElasticsearchJestAppenderTest {
 
 	
 	@After
-	private void tearDownIntegrationTestIndex() throws Exception{
-		String DateString = getDateString();
+	public void tearDownIntegrationTestIndex() throws Exception{
 		JestClientFactory factory = new JestClientFactory();
-		HttpClientConfig.Builder builder = new HttpClientConfig.Builder(System.getProperty("it-elasticsearch-url"));
+		HttpClientConfig.Builder builder = new HttpClientConfig.Builder(System.getProperty(MAVEN_SERVER_URL_PROPERTY));
 		factory.setHttpClientConfig(builder.build());
 		JestClient client = factory.getObject();
-		DeleteIndex deleteAction = new DeleteIndex.Builder(System.getProperty(MAVEN_TEST_INDEX_PROPERTY) + DateString).build();
-		client.execute( deleteAction );
+		DeleteIndex deleteAction = new DeleteIndex.Builder(System.getProperty(MAVEN_TEST_INDEX_PROPERTY) + "-" + getDateString()).build();
+		JestResult jr = client.execute( deleteAction );
+		if(!jr.isSucceeded()){
+			throw new RuntimeException(jr.getErrorMessage());
+		}
+		Thread.sleep(1000);
 	}
 	
 	@Test
-	public void testBasicLoggingIT() {
+	public void testBasicLoggingIT() throws Exception{
 		String connectionString = System.getProperty("it-elasticsearch-url");
-		String testIndex = System.getProperty("it-elasticsearch-url");
+		String testIndex = System.getProperty("it-elasticsearch-index");
 		String testDocType = System.getProperty("it-elasticsearch-doctype");
-		
+		System.out.println("****** PROPERTIES ******" + connectionString);
 		BaseElasticsearchJestAppender appender = new BaseElasticsearchJestAppender();
 		appender.setConnectionString(connectionString);
 		appender.setQueueDepth(1);
@@ -51,17 +56,22 @@ public class BaseElasticsearchJestAppenderTest {
 		appender.activateOptions();
 		Logger testLogger = LogManager.getLogger("UnitTest");
 		testLogger.addAppender(appender);
+		testLogger.setLevel(Level.INFO);
 		testLogger.info("A Test message");
 		testLogger.warn("A Test warn message");
 		testLogger.error("A test of an error", new IllegalArgumentException("Test Arg"));
 		LogManager.shutdown();
 		// this is all async and networked, so for simplicity, we will 
 		// just use a sleep
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		Thread.sleep(1500);
+		// prove that there are 3 records in the index
+		JestClientFactory factory = new JestClientFactory();
+		HttpClientConfig.Builder builder = new HttpClientConfig.Builder(System.getProperty(MAVEN_SERVER_URL_PROPERTY));
+		factory.setHttpClientConfig(builder.build());
+		JestClient client = factory.getObject();
+		Search search = new Search.Builder("{ \"query\" : { \"match_all\" : {} } }").addIndex(System.getProperty(MAVEN_TEST_INDEX_PROPERTY) + "-" + getDateString()).build();
+		JestResult res = client.execute(search);
+		
 	}
 	
 	@Ignore

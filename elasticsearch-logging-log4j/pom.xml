@@ -34,17 +34,20 @@
 			</roles>
 		</developer>
 	</developers>
-	<properties>
-		<it-elasticsearch-url>http://localhost:9200</it-elasticsearch-url>
-		<it-elasticsearch-index>log4j-it-index</it-elasticsearch-index>
-		<it-elasticsearch-doctype>log4j-it-doctype</it-elasticsearch-doctype>
-	</properties>
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<version>2.18.1</version>
+				<configuration>
+					<systemPropertyVariables>
+						<testProperty>testVal</testProperty>
+						<it-elasticsearch-url>http://localhost:9200</it-elasticsearch-url>
+						<it-elasticsearch-index>log4j-it-index</it-elasticsearch-index>
+						<it-elasticsearch-doctype>log4j-it-doctype</it-elasticsearch-doctype>
+					</systemPropertyVariables>
+				</configuration>
 				<executions>
 					<execution>
 						<goals>
