@@ -1,7 +1,5 @@
-package com.polydeucesys.test.utils;
+package com.polydeucesys.eslogging.testutils;
 
-import com.polydeucesys.eslogging.testutils.MockClosableHttpAsyncClient;
-import com.polydeucesys.eslogging.testutils.MockCloseableHttpClient;
 
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestClientFactory;

@@ -8,6 +8,7 @@ import io.searchbox.core.Bulk;
 import io.searchbox.core.Index;
 
 import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.spi.ErrorCode;
 import org.apache.log4j.spi.LoggingEvent;
 
 import com.google.gson.Gson;
@@ -15,7 +16,8 @@ import com.polydeucesys.eslogging.core.Connection;
 import com.polydeucesys.eslogging.core.Constants;
 import com.polydeucesys.eslogging.core.LogAppenderErrorHandler;
 import com.polydeucesys.eslogging.core.LogAppenderModule;
-import com.polydeucesys.eslogging.core.LogSubmissionStrategy;
+import com.polydeucesys.eslogging.core.LogSubmissionException;
+import com.polydeucesys.eslogging.core.LogSubmissionQueueingStrategy;
 import com.polydeucesys.eslogging.core.LogTransform;
 import com.polydeucesys.eslogging.core.SimpleDateStampedLogMapper;
 import com.polydeucesys.eslogging.core.gson.SimpleGsonLogSerializer;
@@ -26,7 +28,9 @@ import com.polydeucesys.eslogging.core.jest.JestLogSubmissionStrategy;
 import com.polydeucesys.eslogging.core.jest.LogMapper;
 
 public class BaseElasticsearchJestAppender extends AppenderSkeleton{
-
+	private static final String FAILED_STOP_MSG = "Exception closing BaseElasticsearchJestAppender appender module";
+	private static final String FAILED_START_MSG = "Exception starting BaseElasticsearchJestAppender appender module";
+	
 	// Settable properties
 	private String connectionString = "";
 	private String logIndexPrefix = "";
@@ -112,7 +116,11 @@ public class BaseElasticsearchJestAppender extends AppenderSkeleton{
 	@Override
 	public void close() {
 		synchronized(moduleBuildLock){
-			loggingModule.close();
+			try {
+				loggingModule.stop();
+			} catch (LogSubmissionException e) {
+				getErrorHandler().error(FAILED_STOP_MSG, e, ErrorCode.CLOSE_FAILURE);
+			}
 		}
 	}
 
@@ -132,40 +140,43 @@ public class BaseElasticsearchJestAppender extends AppenderSkeleton{
 		return esJestErrorHandler;
 	}
 
-	private void buildLoggingModule(){
-		LogTransform<LoggingEvent, LoggingEvent> logTransform = new HostAndCwdLogTransform(logContextPropertiesMap);
-	
-		LogMapper<LoggingEvent> dateStampedLogMapper = new SimpleDateStampedLogMapper<LoggingEvent>(getLogIndexPrefix(),
-																					  getLogIndexDateFormat(),
-																					  getLogDocType());
-		SimpleGsonLogSerializer<LoggingEvent> wrappedJsonStringSerializer = new SimpleGsonLogSerializer<LoggingEvent>();
-		wrappedJsonStringSerializer.setTypeAdapter(LoggingEvent.class, new LoggingEventTypeAdapter());
-		JestIndexStringSerializerWrapper<LoggingEvent> logSerializer = new JestIndexStringSerializerWrapper<LoggingEvent>();
-		logSerializer.setWrappedJsonStringSerializer(wrappedJsonStringSerializer);
-		logSerializer.setIndexMapper(dateStampedLogMapper);
-		Connection<Bulk, JestResult> connection = new JestHttpConnection();
-		connection.setConnectionString(connectionString);
-		connection.connect();
-		LogSubmissionStrategy<Index, Bulk, JestResult> logSubmissionStrategy = new JestLogSubmissionStrategy();
-		logSubmissionStrategy.setConnection(connection);
-		logSubmissionStrategy.setQueueDepth(queueDepth);
-		logSubmissionStrategy.setMaxSubmissionIntervalMillisec(maxSubmissionInterval);
-		LogAppenderErrorHandler errorHandler = setupErrorHandler();
-		loggingModule = new LogAppenderModule<LoggingEvent, LoggingEvent, Index, Bulk, JestResult>(	logTransform,
-																									logSerializer, 
-																									logSubmissionStrategy, 
-																									errorHandler);
+	@Override
+	public void activateOptions(){
+		synchronized(moduleBuildLock){
+			LogTransform<LoggingEvent, LoggingEvent> logTransform = new HostAndCwdLogTransform(logContextPropertiesMap);
+		
+			LogMapper<LoggingEvent> dateStampedLogMapper = new SimpleDateStampedLogMapper<LoggingEvent>(getLogIndexPrefix(),
+																						  getLogIndexDateFormat(),
+																						  getLogDocType());
+			SimpleGsonLogSerializer<LoggingEvent> wrappedJsonStringSerializer = new SimpleGsonLogSerializer<LoggingEvent>();
+			wrappedJsonStringSerializer.setTypeAdapter(LoggingEvent.class, new LoggingEventTypeAdapter());
+			JestIndexStringSerializerWrapper<LoggingEvent> logSerializer = new JestIndexStringSerializerWrapper<LoggingEvent>();
+			logSerializer.setWrappedJsonStringSerializer(wrappedJsonStringSerializer);
+			logSerializer.setIndexMapper(dateStampedLogMapper);
+			Connection<Bulk, JestResult> connection = new JestHttpConnection();
+			connection.setConnectionString(connectionString);
+			LogSubmissionQueueingStrategy<Index, Bulk, JestResult> logSubmissionStrategy = new JestLogSubmissionStrategy();
+			logSubmissionStrategy.setConnection(connection);
+			logSubmissionStrategy.setQueueDepth(queueDepth);
+			logSubmissionStrategy.setMaxSubmissionIntervalMillisec(maxSubmissionInterval);
+			LogAppenderErrorHandler errorHandler = setupErrorHandler();
+			loggingModule = new LogAppenderModule<LoggingEvent, LoggingEvent, Index, Bulk, JestResult>(	logTransform,
+																										logSerializer, 
+																										logSubmissionStrategy, 
+																										errorHandler);
+			try {
+				loggingModule.start();
+			} catch (LogSubmissionException e) {
+				getErrorHandler().error(FAILED_START_MSG, e, ErrorCode.GENERIC_FAILURE);
+			}
+		}
 	}
 	
 	@Override
 	protected void append(LoggingEvent log) {
-		if(loggingModule == null){
-			synchronized(moduleBuildLock){
-				if(loggingModule == null){
-					buildLoggingModule();
-				}
-			}
-		}
+		// make sure we don't lose our MDC 
+		// if the module is asynchronous
+		log.getMDCCopy();
 		loggingModule.append(log);
 	}
 

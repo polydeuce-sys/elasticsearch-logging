@@ -339,13 +339,13 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 	}
 	
 	@Override
-	public void connect() {
+	public void start() throws LogSubmissionException{
 		validateConnectionParameters();
 		jestClient = buildJestClient();
 	}
 
 	@Override
-	public void close() {
+	public void stop() throws LogSubmissionException{
 		long start = System.currentTimeMillis();
 		while(activeAsyncRequests.get() > 0 &&
 				System.currentTimeMillis() - start < maxAsyncCompletionTimeForShutdownMillis){

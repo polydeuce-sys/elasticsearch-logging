@@ -21,7 +21,8 @@ import com.polydeucesys.eslogging.core.Constants;
 import com.polydeucesys.eslogging.core.LogAppenderErrorHandler;
 import com.polydeucesys.eslogging.core.LogAppenderModule;
 import com.polydeucesys.eslogging.core.LogSerializer;
-import com.polydeucesys.eslogging.core.LogSubmissionStrategy;
+import com.polydeucesys.eslogging.core.LogSubmissionException;
+import com.polydeucesys.eslogging.core.LogSubmissionQueueingStrategy;
 import com.polydeucesys.eslogging.core.LogTransform;
 import com.polydeucesys.eslogging.core.SimpleDateStampedLogMapper;
 import com.polydeucesys.eslogging.core.gson.SimpleGsonLogSerializer;
@@ -33,7 +34,9 @@ import com.polydeucesys.eslogging.core.jest.LogMapper;
 import com.polydeucesys.eslogging.core.jest.SimpleJestIndexSerializer;
 
 public class BaseElasticsearchJestAppender extends AbstractAppender{
-	
+	private static final String FAILED_STOP_MSG = "Exception closing BaseElasticsearchJestAppender appender module";
+	private static final String FAILED_START_MSG = "Exception starting BaseElasticsearchJestAppender appender module";
+
 	/**
 	 * 
 	 */
@@ -158,8 +161,7 @@ public class BaseElasticsearchJestAppender extends AbstractAppender{
 		logSerializer.setIndexMapper(dateStampedLogMapper);
 		Connection<Bulk, JestResult> connection = new JestHttpConnection();
 		connection.setConnectionString(connectionString);
-		connection.connect();
-		LogSubmissionStrategy<Index, Bulk, JestResult> logSubmissionStrategy = new JestLogSubmissionStrategy();
+		LogSubmissionQueueingStrategy<Index, Bulk, JestResult> logSubmissionStrategy = new JestLogSubmissionStrategy();
 		logSubmissionStrategy.setConnection(connection);
 		logSubmissionStrategy.setQueueDepth(queueDepth);
 		logSubmissionStrategy.setMaxSubmissionIntervalMillisec(maxSubmissionInterval);
@@ -169,8 +171,12 @@ public class BaseElasticsearchJestAppender extends AbstractAppender{
 				logSerializer, 
 																					 logSubmissionStrategy, 
 																					 errorHandler);
-		
-	}
+		try {
+			loggingModule.start();
+		} catch (LogSubmissionException e) {
+			error(FAILED_START_MSG, e);
+		}
+}
 	
 	@Override 
 	public void start(){
@@ -184,7 +190,11 @@ public class BaseElasticsearchJestAppender extends AbstractAppender{
 	public void stop(){
 		super.stop();
 		synchronized(moduleBuildLock){
-			loggingModule.close();
+			try {
+				loggingModule.stop();
+			} catch (LogSubmissionException e) {
+				error(FAILED_STOP_MSG, e);
+			}		
 		}
 	}
 	

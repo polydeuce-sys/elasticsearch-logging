@@ -21,6 +21,9 @@ public class SimpleDateStampedLogMapper<L> implements LogMapper<L> {
 		this.logIndexPrefix = workingPrefix;
 
 		this.logDocType = logDocType;
+		// test that the date format is valid. Better to fail now than later
+		new SimpleDateFormat(logIndexDateFormat);
+		
 		indexDateFormat = new ThreadLocal<SimpleDateFormat>(){
 			@Override
 			protected SimpleDateFormat initialValue(){

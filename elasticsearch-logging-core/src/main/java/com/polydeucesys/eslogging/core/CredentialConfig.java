@@ -6,9 +6,18 @@ package com.polydeucesys.eslogging.core;
  * to provide a Base64 + encrypted version of the username and password information rather than
  * maintaining secure information in a text file.
  * @author Kevin McLellan
+ * @version 1.0
  *
  */
 public interface CredentialConfig {
+	/**
+	 * Returns a string representing an identity credential
+	 * @return {@code String} identifier
+	 */
 	String username();
+	/**
+	 * Returns a string representing a authentication credential
+	 * @return {@code String} authentication token
+	 */
 	String password();
 }

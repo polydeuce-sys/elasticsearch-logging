@@ -1,13 +1,11 @@
 package com.polydeucesys.eslogging.core.jest;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import io.searchbox.client.http.JestHttpClient;
-import io.searchbox.core.Index;
 
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.polydeucesys.eslogging.core.Constants;
 import com.polydeucesys.eslogging.core.LogSubmissionException;

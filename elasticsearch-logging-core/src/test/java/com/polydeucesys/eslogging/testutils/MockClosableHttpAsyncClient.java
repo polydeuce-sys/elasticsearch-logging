@@ -5,6 +5,8 @@ import io.searchbox.client.JestResult;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -31,14 +33,22 @@ public class MockClosableHttpAsyncClient extends CloseableHttpAsyncClient{
 	private static class MockHttpFuture<T> implements Future<T>{
 		private  final T nextResponse;
 	    private  final Exception nextResponseException;
+	    private final boolean    throwExceptionInsteadOfCallbackError;
 	    private  final FutureCallback<T> callback;
 	    private final  TestCallback<T> testCallback;
-		public MockHttpFuture(T nextResponse, Exception nextResponseException, FutureCallback<T> callback, 
-				TestCallback<T> testCallback){
+	    private final long requestTime;
+	    
+	    
+		public MockHttpFuture(T nextResponse, Exception nextResponseException, 
+				boolean    throwExceptionInsteadOfCallbackError,
+				FutureCallback<T> callback, 
+				TestCallback<T> testCallback, long requestTime){
 			this.nextResponse = nextResponse;
 			this.nextResponseException = nextResponseException;
+			this.throwExceptionInsteadOfCallbackError = throwExceptionInsteadOfCallbackError;
 			this.callback = callback;
 			this.testCallback = testCallback;
+			this.requestTime = requestTime;
 		}
 
 		@Override
@@ -49,6 +59,13 @@ public class MockClosableHttpAsyncClient extends CloseableHttpAsyncClient{
 		@Override
 		public T get()
 				throws InterruptedException, ExecutionException {
+			if(requestTime > 0){
+				try {
+					Thread.sleep(requestTime);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 			if(nextResponseException != null){
 				if(nextResponseException instanceof InterruptedException){
 					throw (InterruptedException)nextResponseException;
@@ -67,11 +84,22 @@ public class MockClosableHttpAsyncClient extends CloseableHttpAsyncClient{
 		public T get(long timeout,
 				TimeUnit unit) throws InterruptedException, ExecutionException,
 				TimeoutException {
+			if(requestTime > 0){
+				try {
+					Thread.sleep(requestTime);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
 			if(nextResponseException != null){
 				if(nextResponseException instanceof InterruptedException){
 					throw (InterruptedException)nextResponseException;
 				}else{
-					callback.failed(nextResponseException);
+					if(throwExceptionInsteadOfCallbackError){
+						throw new ExecutionException(nextResponseException);
+					}else{
+						callback.failed(nextResponseException);
+					}
 				}
 			}
 			callback.completed(nextResponse);
@@ -95,7 +123,10 @@ public class MockClosableHttpAsyncClient extends CloseableHttpAsyncClient{
 
     private  CloseableHttpResponse nextResponse;
     private  Exception nextResponseException;
+    private boolean throwExceptionInsteadOfCallbackError = false;
     private  TestCallback<JestResult> testCallback;
+    private  long requestTime = 0L;
+    private  Executor fakesecutor = Executors.newSingleThreadExecutor(); 
     
     
     public MockClosableHttpAsyncClient(){
@@ -146,25 +177,46 @@ public class MockClosableHttpAsyncClient extends CloseableHttpAsyncClient{
     	this.nextResponseException = nextResponseException;
     }
     
-    public void setTestCallback( TestCallback testCallback){
+    public void setThrowExceptionInsteadOfCallbackError(boolean throwExceptionInsteadOfCallbackError){
+    	this.throwExceptionInsteadOfCallbackError = throwExceptionInsteadOfCallbackError;
+    }
+    
+    public long getRequestTime() {
+		return requestTime;
+	}
+
+	public void setRequestTime(long requestTime) {
+		this.requestTime = requestTime;
+	}
+
+	public void setTestCallback( TestCallback testCallback){
     	this.testCallback = testCallback;
     }
 
 	@Override
-	public <T> Future<T> execute(HttpAsyncRequestProducer requestProducer,
-			HttpAsyncResponseConsumer<T> responseConsumer, HttpContext context,
-			FutureCallback<T> callback) {
+	public <T> Future<T> execute(final HttpAsyncRequestProducer requestProducer,
+			final HttpAsyncResponseConsumer<T> responseConsumer, final HttpContext context,
+			final FutureCallback<T> callback) {
 		try{
-			MockHttpFuture future =  new MockHttpFuture(nextResponse == null? defaultResponse:nextResponse, nextResponseException, callback, testCallback);
-			try {
-				future.get();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (ExecutionException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			final MockHttpFuture future =  new MockHttpFuture(nextResponse == null? defaultResponse:nextResponse, 
+					                                    nextResponseException, throwExceptionInsteadOfCallbackError,
+					                                    callback, 
+					                                    testCallback, requestTime);
+			fakesecutor.execute(new Runnable(){
+
+				@Override
+				public void run() {
+					try {
+						future.get();
+					} catch (InterruptedException e) {
+						callback.failed(e);
+					} catch (ExecutionException e) {
+						callback.failed(e);
+					}
+				}
+				
+			});
 			return future;
 		}finally{
 			nextResponse = null;

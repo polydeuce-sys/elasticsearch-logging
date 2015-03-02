@@ -12,8 +12,9 @@ import com.google.gson.stream.JsonWriter;
 public class LoggingEventTypeAdapter extends TypeAdapter<LoggingEvent> {
 	private static final String WRITE_ONLY_ADAPTER = "Only write operations should be used in the LogAppender";
 
-	private static final String TIMESTAMP_KEY = "timestamp";
+	private static final String TIMESTAMP_KEY = "@timestamp";
 	private static final String START_TIME_KEY = "startTime";
+	private static final String LOGGER_NAME_KEY = "logger";
 	private static final String THREAD_NAME_KEY = "threadName";
 	private static final String LOCATION_KEY = "locationInfo";
 	
@@ -37,6 +38,7 @@ public class LoggingEventTypeAdapter extends TypeAdapter<LoggingEvent> {
 			return;
 	    }
 		writer.beginObject();
+		writer.name(LOGGER_NAME_KEY).value(log.getLoggerName());
 		writer.name(TIMESTAMP_KEY).value(log.getTimeStamp());
 		writer.name(START_TIME_KEY).value(LoggingEvent.getStartTime());
 		writer.name(THREAD_NAME_KEY).value(log.getThreadName());
@@ -56,6 +58,7 @@ public class LoggingEventTypeAdapter extends TypeAdapter<LoggingEvent> {
 		}
 		@SuppressWarnings("unchecked")
 		Set<String> propKeys = log.getPropertyKeySet();
+
 		if(propKeys.size() > 0){
 			writer.name(PROPERTIES_KEY);
 			writer.beginObject();

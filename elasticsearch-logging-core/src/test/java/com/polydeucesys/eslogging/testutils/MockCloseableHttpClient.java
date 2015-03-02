@@ -122,6 +122,7 @@ public class MockCloseableHttpClient extends CloseableHttpClient {
     private  CloseableHttpResponse defaultResponse = responseWithBody(200, "{}");
     private  CloseableHttpResponse nextResponse;
     private  IOException nextResponseException;
+    private long requestTime = 0L;
     
     public HttpRequest getLastRequest(){
     	return savedRequest;
@@ -153,6 +154,14 @@ public class MockCloseableHttpClient extends CloseableHttpClient {
     	this.nextResponseException = nextResponseException;
     }
     
+	public long getRequestTime() {
+		return requestTime;
+	}
+
+	public void setRequestTime(long requestTime) {
+		this.requestTime = requestTime;
+	}
+
 	@Override
 	public ClientConnectionManager getConnectionManager() {
 		return null;
@@ -177,6 +186,7 @@ public class MockCloseableHttpClient extends CloseableHttpClient {
 			if(toThrow != null){
 				throw toThrow;
 			}
+			
 			return nextResponse == null? defaultResponse:nextResponse;
 		}finally{
 			nextResponseException = null;

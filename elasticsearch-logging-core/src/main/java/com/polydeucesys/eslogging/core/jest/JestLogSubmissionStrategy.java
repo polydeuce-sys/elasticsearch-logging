@@ -12,16 +12,15 @@ import com.polydeucesys.eslogging.core.AsyncSubmitCallback;
 import com.polydeucesys.eslogging.core.Connection;
 import com.polydeucesys.eslogging.core.LogAppenderErrorHandler;
 import com.polydeucesys.eslogging.core.LogSubmissionException;
-import com.polydeucesys.eslogging.core.LogSubmissionStrategy;
+import com.polydeucesys.eslogging.core.LogSubmissionQueueingStrategy;
 
 public class JestLogSubmissionStrategy implements
-		LogSubmissionStrategy<Index, Bulk, JestResult> {
+		LogSubmissionQueueingStrategy<Index, Bulk, JestResult> {
 
 	private Bulk.Builder submissionsBuilder = new Bulk.Builder();
 	private int submissionCount = 0;
 	private final Object submissionLock = new Object();
 	private long lastSubmissionTime = System.currentTimeMillis();
-	private boolean hasConnected = false;
 	private LogAppenderErrorHandler errorHandler = new LogSubmissionStdErrErrorHandler();
 	private JestSubmissionCallback callback = new JestSubmissionCallback(errorHandler);
 	private final ScheduledExecutorService intervalScheduler = Executors.newSingleThreadScheduledExecutor();
@@ -29,6 +28,7 @@ public class JestLogSubmissionStrategy implements
 	private long maxSubmissionInterval;
 	private long submissionInterval;
 	private Connection<Bulk, JestResult> connection; 
+	private volatile boolean hasStarted = false;
 	
 	public static class LogSubmissionStdErrErrorHandler implements LogAppenderErrorHandler{
 		private static final String ERR_MSG_FORMAT = "Jest Log Submission Failed due to error \"%s\"";
@@ -127,8 +127,8 @@ public class JestLogSubmissionStrategy implements
 		Bulk toSubmit = null;
 
 		long now = System.currentTimeMillis();
-		if((now - lastSubmissionTime > submissionInterval && submissionCount > 0) ||
-				submissionCount >= queueDepth){
+		if(((now - lastSubmissionTime > submissionInterval && submissionCount > 0) ||
+				submissionCount >= queueDepth) && hasStarted){
 			toSubmit = submissionsBuilder.build();
 			submissionsBuilder = new Bulk.Builder();
 			lastSubmissionTime = System.currentTimeMillis();
@@ -147,34 +147,36 @@ public class JestLogSubmissionStrategy implements
 	@Override
 	public void submit(Index log) throws LogSubmissionException {
 		Bulk toSubmit = null;
+		// add to Bulk. if the Bulk now has the full set of docs, 
+		// then create a new Bulk, and assign the current on to the local
+		// var
 		synchronized(submissionLock){
-			if(!hasConnected){
-				// if this was more heavyweight we might make it async
-				connection.connect();
-				intervalScheduler.scheduleAtFixedRate(new IntervalRunnable(), 
-														submissionInterval, 
-														submissionInterval, 
-														TimeUnit.MILLISECONDS);
-				hasConnected = true;
-			}
-			// add to Bulk. if the Bulk now has the full set of docs, 
-			// then create a new Bulk, and assign the current on to the local
-			// var
 			submissionsBuilder.addAction(log);
 			submissionCount++;
 			toSubmit = checkIfSubmitRequired();
 		}
 		submitIfRequired(toSubmit);
 	}
+	
+	@Override 
+	public void start() throws LogSubmissionException{
+		// if this was more heavyweight we might make it async
+		connection.start();
+		intervalScheduler.scheduleAtFixedRate(new IntervalRunnable(), 
+				submissionInterval, 
+				submissionInterval, 
+				TimeUnit.MILLISECONDS);
+		hasStarted = true;
+	}
 
 	@Override
-	public void close() throws LogSubmissionException {
+	public void stop() throws LogSubmissionException {
 		synchronized(submissionLock){
 			if(submissionCount > 0){
 				Bulk toSubmit = submissionsBuilder.build();
-				connection.submit(toSubmit);
+				submitIfRequired(toSubmit);
 			}
-			connection.close();
+			connection.stop();
 		}
 	}
 
