@@ -14,7 +14,25 @@ import com.polydeucesys.eslogging.core.gson.SimpleGsonLogSerializer;
 import com.polydeucesys.eslogging.testutils.MockCloseableHttpClient;
 import com.polydeucesys.eslogging.testutils.TestClass1;
 import com.polydeucesys.eslogging.testutils.TestClass2;
-
+/**
+ * Copyright (c) 2016 Polydeuce-Sys Ltd
+ *
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+ * associated documentation files (the "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ **/
 public class JestIndexStringSerializerWrapperTest {
 
 	
@@ -40,6 +58,7 @@ public class JestIndexStringSerializerWrapperTest {
 		final JestIndexStringSerializerWrapper<TestClass1> w1 = new JestIndexStringSerializerWrapper<TestClass1>();
 		w1.setIndexMapper(getStaticMapper());
 		w1.setWrappedJsonStringSerializer(s1);
+		w1.start();
 		JestHttpClient jestClient = MockCloseableHttpClient.testableJestClient();
 		MockCloseableHttpClient mockc = (MockCloseableHttpClient) jestClient.getHttpClient();
 		mockc.setNextResponse(MockCloseableHttpClient.responseWithBody(200, 
@@ -76,10 +95,10 @@ public class JestIndexStringSerializerWrapperTest {
 		final SimpleGsonLogSerializer<TestClass1> s1 = new SimpleGsonLogSerializer<TestClass1>();
 		final JestIndexStringSerializerWrapper<TestClass1> w1 = new JestIndexStringSerializerWrapper<TestClass1>();
 		try{
-			w1.serializeLog(t1);
+			w1.start();
 			fail("Expected exception");
 
-		}catch(IllegalArgumentException ex){
+		}catch(LogSubmissionException ex){
 			assertEquals(String.format(Constants.CONFIGURATION_ERROR_FORMAT,
 				"indexMapper", w1.getClass().getName()),
 				ex.getMessage());
@@ -89,9 +108,9 @@ public class JestIndexStringSerializerWrapperTest {
 		final JestIndexStringSerializerWrapper<TestClass1> w2 = new JestIndexStringSerializerWrapper<TestClass1>();
 		w2.setIndexMapper(getStaticMapper());
 		try{
-			w2.serializeLog(t1);
+			w2.start();
 			fail("Expected exception");
-		}catch(IllegalArgumentException ex){
+		}catch(LogSubmissionException ex){
 			assertEquals(String.format(Constants.CONFIGURATION_ERROR_FORMAT,
 				"wrappedJsonStringSerializer", w2.getClass().getName()),
 				ex.getMessage());

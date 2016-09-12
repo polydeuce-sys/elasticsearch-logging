@@ -49,7 +49,21 @@ public class TestClass3 {
 			}
 			return log.toJsonString();
 		}
-		
+
+		@Override
+		public void start() throws LogSubmissionException {
+
+		}
+
+		@Override
+		public void stop() throws LogSubmissionException {
+
+		}
+
+		@Override
+		public boolean isStarted() {
+			return true;
+		}
 	}
 	
 	private static RandomString rs = new RandomString(64);

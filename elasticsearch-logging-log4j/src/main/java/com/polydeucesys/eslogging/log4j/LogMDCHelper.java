@@ -6,6 +6,9 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.slf4j.MDC;
 
+/**
+ * Simple helper class for writing log messages with a specific set of MDC values.
+ */
 public class LogMDCHelper {
 	public static void logWithContextMap( Logger log, Level level, Object message, Throwable exception, Map<String, String> context){
 		Map<String, String> restore = MDC.getCopyOfContextMap();

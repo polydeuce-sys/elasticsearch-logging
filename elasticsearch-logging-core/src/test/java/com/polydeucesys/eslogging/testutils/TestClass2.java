@@ -17,7 +17,21 @@ public class TestClass2 {
 			}
 			return log.toJsonString();
 		}
-		
+
+		@Override
+		public void start() throws LogSubmissionException {
+
+		}
+
+		@Override
+		public void stop() throws LogSubmissionException {
+
+		}
+
+		@Override
+		public boolean isStarted() {
+			return true;
+		}
 	}
 	
 	private final String s1;

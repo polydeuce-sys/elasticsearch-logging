@@ -18,7 +18,7 @@ import com.polydeucesys.eslogging.core.LogSubmissionException;
  *
  */
 public class MockJestConnection implements Connection<Bulk, JestResult> {
-	private boolean started = false;
+	private volatile boolean started = false;
 	private String connectionString = null;
 	
 	private LogSubmissionException toThrow;
@@ -41,6 +41,11 @@ public class MockJestConnection implements Connection<Bulk, JestResult> {
 			throw new LogSubmissionException("Invalid Config. No Connection String");
 		}
 		started = true;
+	}
+
+	@Override
+	public boolean isStarted(){
+		return started;
 	}
 
 	@Override

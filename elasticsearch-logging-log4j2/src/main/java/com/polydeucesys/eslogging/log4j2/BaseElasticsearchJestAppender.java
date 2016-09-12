@@ -1,45 +1,81 @@
 package com.polydeucesys.eslogging.log4j2;
 
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.logging.log4j.core.ErrorHandler;
-import org.apache.logging.log4j.core.Filter;
-import org.apache.logging.log4j.core.Layout;
-import org.apache.logging.log4j.core.LogEvent;
-import org.apache.logging.log4j.core.appender.AbstractAppender;
-
+import com.google.gson.Gson;
+import com.polydeucesys.eslogging.core.*;
+import com.polydeucesys.eslogging.core.gson.SimpleGsonLogSerializer;
+import com.polydeucesys.eslogging.core.jest.*;
 import io.searchbox.client.JestResult;
 import io.searchbox.core.Bulk;
 import io.searchbox.core.Index;
+import org.apache.logging.log4j.core.*;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.plugins.*;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+/**
+ * Copyright (c) 2016 Polydeuce-Sys Ltd
+ *
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+ * associated documentation files (the "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ **/
+/**
+ * Provides the Appender implementation for log4j version 2. The appender wraps the
+ * {@link LogAppenderModule} functionality and provides a means of setting the configuration
+ * of the module.
+ *
+ * @author Kevin McLellan
+ * @version 1.0
+ */
+@Plugin(name = "BaseElasticsearchJestAppender", category = "Core", elementType = "appender", printObject = true)
+public class BaseElasticsearchJestAppender extends AbstractAppender {
 
-import com.google.gson.Gson;
-import com.polydeucesys.eslogging.core.Connection;
-import com.polydeucesys.eslogging.core.Constants;
-import com.polydeucesys.eslogging.core.LogAppenderErrorHandler;
-import com.polydeucesys.eslogging.core.LogAppenderModule;
-import com.polydeucesys.eslogging.core.LogSerializer;
-import com.polydeucesys.eslogging.core.LogSubmissionException;
-import com.polydeucesys.eslogging.core.LogSubmissionQueueingStrategy;
-import com.polydeucesys.eslogging.core.LogTransform;
-import com.polydeucesys.eslogging.core.SimpleDateStampedLogMapper;
-import com.polydeucesys.eslogging.core.gson.SimpleGsonLogSerializer;
-import com.polydeucesys.eslogging.core.jest.JestConstants;
-import com.polydeucesys.eslogging.core.jest.JestHttpConnection;
-import com.polydeucesys.eslogging.core.jest.JestIndexStringSerializerWrapper;
-import com.polydeucesys.eslogging.core.jest.JestLogSubmissionStrategy;
-import com.polydeucesys.eslogging.core.jest.LogMapper;
-import com.polydeucesys.eslogging.core.jest.SimpleJestIndexSerializer;
+	@PluginFactory
+	public static BaseElasticsearchJestAppender createAppender(@PluginAttribute("name") String name,
+											  @PluginAttribute("ignoreExceptions") boolean ignoreExceptions,
+											  @PluginElement("Layout") Layout layout,
+											  @PluginElement("Filters") Filter filter,
+                                              @PluginAttribute("connectionString") String connectionString,
+                                              @PluginAttribute("queueDepth") int queueDepth,
+                                              @PluginAttribute("maxSubmissionInterval") int maxSubmissionInterval,
+                                              @PluginAttribute("logIndexPrefix") String logIndexPrefix,
+                                              @PluginAttribute("logDocType") String logDocType) {
 
-public class BaseElasticsearchJestAppender extends AbstractAppender{
+		if (name == null) {
+			LOGGER.error("No name provided for StubAppender");
+			return null;
+		}
+
+		if (layout == null) {
+			layout = PatternLayout.createDefaultLayout();
+		}
+        BaseElasticsearchJestAppender appender =  new BaseElasticsearchJestAppender(name, filter, layout, ignoreExceptions);
+	    appender.setConnectionString(connectionString);
+        appender.setQueueDepth(queueDepth);
+        appender.setMaxSubmissionInterval(maxSubmissionInterval);
+        appender.setLogIndexPrefix(logIndexPrefix);
+        appender.setLogDocType(logDocType);
+        return appender;
+	}
+
 	private static final String FAILED_STOP_MSG = "Exception closing BaseElasticsearchJestAppender appender module";
 	private static final String FAILED_START_MSG = "Exception starting BaseElasticsearchJestAppender appender module";
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 8319273193664493254L;
 	// Settable properties
 	private String connectionString = "";
@@ -167,10 +203,8 @@ public class BaseElasticsearchJestAppender extends AbstractAppender{
 		logSubmissionStrategy.setMaxSubmissionIntervalMillisec(maxSubmissionInterval);
 		LogAppenderErrorHandler errorHandler = setupErrorHandler();
 
-		loggingModule = new LogAppenderModule<LogEvent,PropertyCarryLogEventWrapper, Index, Bulk, JestResult>(null,
-				logSerializer, 
-																					 logSubmissionStrategy, 
-																					 errorHandler);
+		loggingModule = new LogAppenderModule<LogEvent,PropertyCarryLogEventWrapper, Index, Bulk, JestResult>
+                (logTransform, logSerializer, logSubmissionStrategy, errorHandler);
 		try {
 			loggingModule.start();
 		} catch (LogSubmissionException e) {

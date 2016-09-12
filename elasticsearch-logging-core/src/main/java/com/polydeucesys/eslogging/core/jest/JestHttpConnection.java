@@ -24,6 +24,25 @@ import com.polydeucesys.eslogging.core.Connection;
 import com.polydeucesys.eslogging.core.Constants;
 import com.polydeucesys.eslogging.core.LogSubmissionException;
 import com.polydeucesys.utils.StringUtils;
+/**
+ * Copyright (c) 2016 Polydeuce-Sys Ltd
+ *
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+ * associated documentation files (the "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+ * following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ **/
 
 /**
  * Provides a Connection implementation based on the Jest REST client. 
@@ -45,14 +64,18 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 
 		@Override
 		public void completed(JestResult result) {
-			try{
-				if(result.isSucceeded()){
-					callback.completed(result);
-				}else{
-					callback.error(new LogSubmissionException(
-			 				String.format(JestConstants.JEST_BAD_STATUS_EXCEPTION_FORMAT,
-			 							  result.getErrorMessage())));
-				}
+			try {
+                if (result.isSucceeded()) {
+                    callback.completed(result);
+                } else {
+                    callback.error(new LogSubmissionException(
+                            String.format(JestConstants.JEST_BAD_STATUS_EXCEPTION_FORMAT,
+                                    result.getErrorMessage())));
+                }
+            }catch( IllegalStateException e){
+                callback.error(new LogSubmissionException(
+                        String.format(JestConstants.JEST_BAD_STATUS_EXCEPTION_FORMAT,
+                                e.getMessage())));
 			}finally{
 				activeAsyncRequests.decrementAndGet();
 			}
@@ -91,7 +114,8 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 	private long    clientMaxConnectionIdleTimeMillis = JestConstants.CLIENT_MAX_CONNECTION_IDLE_TIME_MILLIS;
 	
 	private long    maxAsyncCompletionTimeForShutdownMillis = JestConstants.CLIENT_DEFAULT_MAX_ASYNC_COMPLETEION_TIME_FOR_SHUTDOWN;
-	
+
+	private volatile boolean started = false;
 	@Override
 	public void setConnectionString(String connectionString) {
 		StringUtils.splitToCollection(connectionString, esHosts);
@@ -110,6 +134,12 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 		return jestClientFactory;
 	}
 
+	/**
+	 * Set the instance of {@link JestClientFactory} used to return Jest clients for use with
+	 * the server specified in the connection string. This allows for clients which can connect to
+	 * secured servers for example. See {@link com.polydeucesys.eslogging.core.jest.ex.kerberos.KerberosJestClientFactory}
+	 * @param jestClientFactory
+	 */
 	public void setJestClientFactory(final JestClientFactory jestClientFactory) {
 		this.jestClientFactory = jestClientFactory;
 	}
@@ -229,31 +259,20 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 			throw new LogSubmissionException(
 					 String.format(JestConstants.JEST_EXCEPTION_FORMAT, toString()),
 					 e);
-		}
+		} catch (IllegalStateException e) {
+		    // Apparently this is thrown for invalid response bodies rather than
+            // checking status codes
+            throw new LogSubmissionException(
+                    String.format(JestConstants.JEST_EXCEPTION_FORMAT, toString()),
+                    e);
+        }
 	}
 
 	@Override
 	public void submitAsync(Bulk document,
 			AsyncSubmitCallback<JestResult> callback) {
-		try {
-			activeAsyncRequests.incrementAndGet();
-			jestClient.executeAsync(document, new JestResultWrapper(callback, activeAsyncRequests));
-		} catch (ExecutionException ex) {
-			callback.error(new LogSubmissionException(
-	 				String.format(JestConstants.JEST_ASYNC_EXCEPTION_FORMAT, 
-	 							  toString()),
-			       ex));
-		} catch (InterruptedException ex) {
-			callback.error(new LogSubmissionException(
-	 				String.format(JestConstants.JEST_ASYNC_EXCEPTION_FORMAT, 
-	 							  toString()),
-			       ex));
-		} catch (IOException ex) {
-			callback.error(new LogSubmissionException(
-	 				String.format(JestConstants.JEST_ASYNC_EXCEPTION_FORMAT, 
-	 							  toString()),
-			       ex));
-		}
+        activeAsyncRequests.incrementAndGet();
+        jestClient.executeAsync(document, new JestResultWrapper(callback, activeAsyncRequests));
 	}
 	
 	// ensure max connections are not 0 if multi-threaded
@@ -342,10 +361,17 @@ public class JestHttpConnection implements Connection<Bulk, JestResult> {
 	public void start() throws LogSubmissionException{
 		validateConnectionParameters();
 		jestClient = buildJestClient();
+        started = true;
 	}
 
 	@Override
+    public boolean isStarted(){
+	    return started;
+    }
+
+	@Override
 	public void stop() throws LogSubmissionException{
+	    started = false;
 		long start = System.currentTimeMillis();
 		while(activeAsyncRequests.get() > 0 &&
 				System.currentTimeMillis() - start < maxAsyncCompletionTimeForShutdownMillis){

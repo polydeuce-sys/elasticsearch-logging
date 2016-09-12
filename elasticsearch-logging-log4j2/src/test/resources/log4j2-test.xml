@@ -1,0 +1,16 @@
+<Configuration>
+    <Appenders>
+        <BaseElasticsearchJestAppender type="BaseElasticsearchJestAppender" name="TestAppender">
+            <ConnectionString>${sys:connection.string}</ConnectionString>
+            <QueueDepth>1</QueueDepth>
+            <MaxSubmissionInterval>100</MaxSubmissionInterval>
+            <LogIndexPrefix>${sys:log.index.prefix}</LogIndexPrefix>
+            <LogDocType>${sys:log.doc.type}</LogDocType>
+        </BaseElasticsearchJestAppender>
+    </Appenders>
+    <Loggers>
+        <Logger name="UnitTest" level="info" additivity="false">
+            <AppenderRef ref="TestAppender"/>
+        </Logger>
+    </Loggers>
+</Configuration>
