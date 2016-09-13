@@ -51,4 +51,5 @@ elasticsearch-logging-log4j2/target/**
 elasticsearch-logging-log4j/target/**
 elasticsearch-logging-core/target/**
 # IDE config
-.idea
+.idea/**
+*.iml
