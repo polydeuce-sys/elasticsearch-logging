@@ -13,11 +13,11 @@
   </parent>
   <inceptionYear>2014</inceptionYear>
   	<licenses>
-		<license>
-			<name>MIT License</name>
-			<url>http://www.opensource.org/licenses/mit-license.php</url>
-			<distribution>repo</distribution>
-		</license>
+        <license>
+            <name>Apache2 License</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
 	</licenses>
   <organization>
   	<name>Polydeuce-Sys LLP</name>

@@ -176,6 +176,18 @@ public class BaseElasticsearchJestAppender extends AppenderBase<ILoggingEvent> {
     }
 
     @Override
+    public void stop() {
+        super.stop();
+        synchronized (moduleBuildLock) {
+            try {
+                loggingModule.stop();
+            } catch (LogSubmissionException e) {
+                errorHandler.error(FAILED_STOP_MSG, e);
+            }
+        }
+    }
+
+    @Override
     protected void append(ILoggingEvent e) {
         loggingModule.append(e);
     }
