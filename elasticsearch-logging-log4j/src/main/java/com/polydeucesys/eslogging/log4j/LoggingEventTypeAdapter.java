@@ -53,14 +53,16 @@ public class LoggingEventTypeAdapter extends TypeAdapter<LoggingEvent> {
 		writer.name(NDC_KEY).value(log.getNDC());
         Map mdc = log.getProperties();
         if(!mdc.isEmpty()) {
-            writer.name(MDC_KEY).beginObject();
+            writer.name(MDC_KEY);
+			writer.beginObject();
             for(Map.Entry entry : (Set<Map.Entry>)mdc.entrySet()){
-                writer.name(MDC_KEY).name(entry.getKey().toString())
+                writer.name(entry.getKey().toString())
                         .value(entry.getValue().toString());
             }
-            writer.name(MDC_KEY).endObject();
+            writer.endObject();
         }else{
-            writer.name(MDC_KEY).nullValue();
+            writer.name(MDC_KEY);
+			writer.nullValue();
         }
 		writer.name(MESSAGE_KEY).value(log.getRenderedMessage());
 		if(log.getThrowableInformation() != null){

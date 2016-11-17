@@ -15,7 +15,7 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-/**
+/*
  *  Copyright 2016 Polydeuce-Sys Ltd
  *
  *       Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,7 @@ import java.util.Map;
  *       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *       See the License for the specific language governing permissions and
  *       limitations under the License.
- **/
+ */
 
 /**
  * Provides the Appender implementation for log4j version 2. The appender wraps the
